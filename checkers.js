@@ -70,6 +70,23 @@ function resize(board) {
 	board.setAttribute('style', 'width: '+size+'px; height: '+size+'px; max-width: 98%; max-height: 95%;');
 }
 
+function keyPress(e){
+
+	// Get the key
+	var keynum;
+	if(window.event) { // IE                    
+		keynum = e.keyCode;
+	} else if(e.which){ // All other browsers                   
+		keynum = e.which;
+	}
+	var key = String.fromCharCode(keynum);
+	
+	// Determine what to do
+	if (key == 'r') { // reset
+		game = load(htmlBoard,htmlOptions);
+	}
+}
+
 function clickEvent(index) {
 	
 	// Player move is made by AI
@@ -174,6 +191,11 @@ function Game(squares, isP1AI, isP2AI) {
 		// Convert to square
 		var index = y*4 + Math.floor(x/2);
 		return index >= 0 && index < squares.length? this.squares[index] : null;
+	}
+	this.getAdjacent = function(square) {
+		if (!square) {return [];}
+		var x = square.x, y = square.y;
+		return [this.get(x-1,y-1), this.get(x+1,y-1), this.get(x-1,y+1), this.get(x+1,y+1)];
 	}
 	this.isValid = function(start, end, ignoreTurn) {
 		if (!start || !end || start.isEmpty() || !end.isEmpty()) {return false;}
@@ -459,7 +481,74 @@ function getAISkip(square, board) {
 }
 
 function getWeight(move, board) {
-	var weight = 0;
+	var weight = 0, game = board.copy();
+	var start = game.get(move.start.x, move.start.y);
+	var end = game.get(move.end.x, move.end.y);
 	//TODO
+	
+	// Make the move on the board clone
+	var endID = start.id, newKing = false;
+	if (start.isBlackChecker() && end.y == 7) {
+		endID = ID_BLACK_KING;
+		newKing = true;
+	} else if (start.isWhiteChecker() && end.y == 0) {
+		endID = ID_WHITE_KING;
+		newKing = true;
+	}
+	end.id = endID;
+	start.id = ID_EMPTY;
+	var dist = start.dist(end), isSkip = Math.abs(dist.dx) == 2;
+	if (isSkip) {
+		var middle = game.get(start.x + dist.dx/2, start.y + dist.dy/2);
+		middle.id = ID_EMPTY;
+	}
+	
+	// Determine safety status of the move
+	var safeBefore = isSafe(move.start, board);
+	var safeAfter = isSafe(end, game);
+	if (safeBefore && safeAfter) {
+		weight += W_S_S;
+	} else if (!safeBefore && safeAfter) {
+		weight += W_US_S;
+	} else if (safeBefore && !safeAfter) {
+		weight += W_S_US;
+	} else {weight += W_US_US;}
+	
+	// Determine additional info about the move
+	var skipsAfter = end.getSkips(game).length > 0;
+	if (skipsAfter) { // a skip is available after the move
+		weight += W_SKIP_ON_NEXT_MOVE;
+	}
+	var movesAfter = end.getMoves(true, game);
+	if (movesAfter.length == 0) { // no moves afterwards
+		weight += W_GETS_STUCK;
+	}
+	if (newKing) { // becomes a king
+		weight += W_BECOMES_K;
+	}
+	
 	return weight;
+}
+
+function isSafe(square, board) {
+	if (!square || !board || square.isEmpty()) {return true;}
+	var adj = board.getAdjacent(square);
+	
+	// Check by square
+	var x = square.x, y = square.y;
+	for (var i=0; i<adj.length; i++) {
+		var s = adj[i];
+		if (!s) {continue;}
+		if (square.isEnemy(s)) {
+			var skips = s.getSkips(board);
+			for (var j=0; j<skips.length; j++) {
+				var d = s.dist(skips[j]);
+				if (x == s.x + d.dx/2 && y == s.y + d.dy/2) {
+					return false; // enemy can skip
+				}
+			}
+		}
+	}
+	
+	return true;
 }
