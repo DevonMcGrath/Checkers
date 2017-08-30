@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en-US">
+	<head>
+		<title>Checkers</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="author" content="Devon McGrath" />
+		<meta name="robots" content="noindex" />
+		
+		<style>
+			body {font-family: Arial; margin: 0; padding: 0; background: #CFCFCF;}
+			#board {position: fixed; margin: 5px; box-shadow: 0 0 5px 2px black; background: white;}
+			.s {position: absolute; width: 12.5%; height: 12.5%; background: black;}
+			.sq {width: 20px; height: 20px; border: 1px solid black; display: inline-block;}
+			#options {position: fixed; background: #CFCFFF; left: 0; bottom: 0; z-index: 1; width: 100%;}
+			.btn {background: #00CF00; color: white; cursor: pointer; display: inline-block; padding: 8px; margin: 5px 10px; border-radius: 3px;}
+			.btn:hover {background: #00FF00;}
+			.c {position: absolute; width: 92%; height: 92%; border-radius: 100%; left: 4%; top: 4%;}
+			.b {background: red; background: radial-gradient(#303030 57%, white); box-shadow: 0 0 0 1px white;}
+			.bk {background: red; background: radial-gradient(#303030 57%, yellow); box-shadow: 0 0 0 1px yellow;}
+			.w {background: white; background: radial-gradient(white 57%, black);}
+			.wk {background: white; background: radial-gradient(white 57%, yellow); box-shadow: 0 0 0 1px yellow;}
+		</style>
+	</head>
+	<body onresize="resize(htmlBoard);">
+		<noscript>
+			<h1>JavaScript not enabled</h1>
+			<p>This webpage requires JavaScript to function. To use this page, turn JavaScript on and refresh the page.</p>
+		</noscript>
+		<div id="options">&nbsp;</div>
+		<div id="board" />
+		<script src="checkers.js"></script>
+	</body>
+</html>
