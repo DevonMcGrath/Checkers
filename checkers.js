@@ -13,6 +13,7 @@ var ID_WHITE = {"id": 3, "html": "<div class=\"c w\"/>"};
 var ID_WHITE_KING = {"id": 4, "html": "<div class=\"c wk\"/>"};
 
 // Setup the game
+var over = false;
 var htmlBoard = document.getElementById('board');
 var htmlOptions = document.getElementById('options');
 var game = load(htmlBoard,htmlOptions);
@@ -22,6 +23,7 @@ function load(board, options, isP1AI, isP2AI) {
 	if (!board || !board.innerHTML || !options || !options.innerHTML) {return new Game([],false,false);}
 	if (timeOut) {clearTimeout(timeOut);}
 	if (timeOut2) {clearTimeout(timeOut2);}
+	over = false;
 	
 	// Create the board
 	board.innerHTML = '';
@@ -56,7 +58,7 @@ function load(board, options, isP1AI, isP2AI) {
 	var board = new Game(squares,isP1AI,isP2AI);
 	if (isP1AI) {
 		var aiMove = getAIMove(true, board);
-		timeOut2 = setTimeout(function(aiMove) {move(aiMove.start, aiMove.end, board);}, AI_DELAY, aiMove);
+		timeOut2 = setTimeout(function(aiMove) {move(aiMove.start, aiMove.end, game);}, AI_DELAY, aiMove);
 	}
 	
 	return board;
@@ -88,6 +90,7 @@ function keyPress(e){
 }
 
 function clickEvent(index) {
+	if (over) {return;}
 	
 	// Player move is made by AI
 	if ((game.isP1Turn && game.isP1AI) || (!game.isP1Turn && game.isP2AI)) {return;}
@@ -168,12 +171,18 @@ function switchPlayer(start, end, board) {
 			timeOut2 = setTimeout(function(aiMove) {move(aiMove.start, aiMove.end, board);}, AI_DELAY, aiMove);
 		} else {gameover();}
 	}
+	
+	// Check if game over
+	if (board.isGameOver()) {
+		gameover();
+	}
 }
 
 function gameover() {
 	htmlBoard.innerHTML += '<span style="position: absolute; left: 50%; top: 50%; color: red;'+
 	'transform: translate(-50%,-50%); font-weight: bold; font-size: 2em; background: rgba(235,235,235,0.9);'+
 	'border-radius: 7px; text-align: center; padding: 5px;">GAME OVER!!!</span>';
+	over = true;
 }
 
 function Game(squares, isP1AI, isP2AI) {
@@ -240,12 +249,26 @@ function Game(squares, isP1AI, isP2AI) {
 			return false; // a skip is available, but the move is not a skip
 		}
 		
-		return true;//TODO
+		return true;
 	}
 	this.isGameOver = function() {
+		
+		// No checkers
 		if (!squares || squares.length == 0) {return true;}
-		if (getBlackCheckers().length == 0 || getWhiteCheckers().length == 0) {return true;}
-		return false; //TODO
+		var b = this.getBlackCheckers(), w = this.getWhiteCheckers();
+		if (b.length == 0 || w.length == 0) {return true;}
+		
+		// Check if the current player can move
+		var checkers = this.isP1Turn? b : w;
+		var move = false;
+		for (var i=0; i<checkers.length; i++) {
+			if (checkers[i].getMoves(true, this).length > 0) {
+				move = true;
+				break;
+			}
+		}
+		
+		return !move;
 	}
 	this.getBlackCheckers = function() {
 		var checkers = [];
@@ -265,8 +288,8 @@ function Game(squares, isP1AI, isP2AI) {
 		var obj = '', n=0;
 		for (var y=0; y<8; y++) {
 			for (var x=0; x<8; x++) {
-				if (x%2 == y%2) {continue;}
-				obj += squares[n++].id.id + ' ';
+				if (x%2 == y%2) {obj += '_'; continue;}
+				obj += squares[n++].id.id + '_';
 			}
 			obj += '\n';
 		}
@@ -393,6 +416,7 @@ var W_SKIP_ON_NEXT_MOVE = 25;
 var W_ENEMY_SKIP_AFTER = -10;
 var W_BECOMES_K = 75;
 var W_GETS_STUCK = -10;
+var W_OTHER_S = 40;
 
 function Move(start, end, weight) {
 	this.start = start;
@@ -481,17 +505,18 @@ function getAISkip(square, board) {
 }
 
 function getWeight(move, board) {
-	var weight = 0, game = board.copy();
-	var start = game.get(move.start.x, move.start.y);
-	var end = game.get(move.end.x, move.end.y);
-	//TODO
+	var weight = 0, after = board.copy();
+	var start = after.get(move.start.x, move.start.y);
+	var end = after.get(move.end.x, move.end.y);
+	if (start.isEmpty()) {return weight;}
+	var white = start.isWhiteChecker();
 	
 	// Make the move on the board clone
 	var endID = start.id, newKing = false;
-	if (start.isBlackChecker() && end.y == 7) {
+	if (start.isBlackChecker() && end.y == 7 && !start.isKing()) {
 		endID = ID_BLACK_KING;
 		newKing = true;
-	} else if (start.isWhiteChecker() && end.y == 0) {
+	} else if (start.isWhiteChecker() && end.y == 0 && !start.isKing()) {
 		endID = ID_WHITE_KING;
 		newKing = true;
 	}
@@ -499,13 +524,13 @@ function getWeight(move, board) {
 	start.id = ID_EMPTY;
 	var dist = start.dist(end), isSkip = Math.abs(dist.dx) == 2;
 	if (isSkip) {
-		var middle = game.get(start.x + dist.dx/2, start.y + dist.dy/2);
+		var middle = after.get(start.x + dist.dx/2, start.y + dist.dy/2);
 		middle.id = ID_EMPTY;
 	}
 	
 	// Determine safety status of the move
 	var safeBefore = isSafe(move.start, board);
-	var safeAfter = isSafe(end, game);
+	var safeAfter = isSafe(end, after);
 	if (safeBefore && safeAfter) {
 		weight += W_S_S;
 	} else if (!safeBefore && safeAfter) {
@@ -515,17 +540,32 @@ function getWeight(move, board) {
 	} else {weight += W_US_US;}
 	
 	// Determine additional info about the move
-	var skipsAfter = end.getSkips(game).length > 0;
+	var skipsAfter = end.getSkips(after).length > 0;
 	if (skipsAfter) { // a skip is available after the move
 		weight += W_SKIP_ON_NEXT_MOVE;
 	}
-	var movesAfter = end.getMoves(true, game);
+	var movesAfter = end.getMoves(true, after);
 	if (movesAfter.length == 0) { // no moves afterwards
 		weight += W_GETS_STUCK;
 	}
 	if (newKing) { // becomes a king
 		weight += W_BECOMES_K;
 	}
+	
+	// Determine if the move puts other checkers at risk
+	var safeCount = [0, 0];
+	for (var i=0; i<2; i++) {
+		var ignore = i == 0? start : end;
+		var b = i == 0? board : after;
+		var checkers = white? b.getWhiteCheckers() : b.getBlackCheckers();
+		for (var j=0; j<checkers.length; j++) {
+			var p = checkers[j];
+			if (p.x != ignore.x || p.y != ignore.y) {
+				if (isSafe(p, b)) {safeCount[i] ++;}
+			}
+		}
+	}
+	weight += ((safeCount[1] - safeCount[0])*W_OTHER_S);
 	
 	return weight;
 }
