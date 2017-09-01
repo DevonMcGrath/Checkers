@@ -1,8 +1,12 @@
 /**
  * Name: checkers.js
- * Author: Devon McGrath
+ * Author: Devon McGrath (https://devonmcgrath.me)
+ * Description: This JS file is responsible for all the checkers game logic.
+ * This includes both the HTML/CSS side of things and the game behaviour for
+ * human users as well as AI players.
  */
 
+// The delay between each AI move (in milliseconds)
 var AI_DELAY = 1100;
 
 // IDs for checkers
@@ -19,6 +23,7 @@ var htmlOptions = document.getElementById('options');
 var game = load(htmlBoard,htmlOptions);
 var timeOut = null, timeOut2 = null;
 
+/** Loads a new game instance. This causes the HTML and game to be reset to the original state. */
 function load(board, options, isP1AI, isP2AI) {
 	if (!board || !board.innerHTML || !options || !options.innerHTML) {return new Game([],false,false);}
 	if (timeOut) {clearTimeout(timeOut);}
@@ -64,6 +69,7 @@ function load(board, options, isP1AI, isP2AI) {
 	return board;
 }
 
+/** Resizes the display board based on the size of the screen. */
 function resize(board) {
 	var optH = htmlOptions.offsetHeight;;
 	optH = 45 > optH? 45 : optH;
@@ -72,6 +78,7 @@ function resize(board) {
 	board.setAttribute('style', 'width: '+size+'px; height: '+size+'px; max-width: 98%; max-height: 95%;');
 }
 
+/** Detects and responds to key presses. */
 function keyPress(e){
 
 	// Get the key
@@ -89,6 +96,7 @@ function keyPress(e){
 	}
 }
 
+/** Responds to black tiles being clicked and responds accordingly. */
 function clickEvent(index) {
 	if (over) {return;}
 	
@@ -117,6 +125,7 @@ function clickEvent(index) {
 	move(game.selected,game.squares[index],game);
 }
 
+/** Makes a move on the game board. This is called after the move has been validated. */
 function move(start, end, board) {
 	if (!start || !end) {return false;}
 	if (timeOut) {
@@ -155,7 +164,9 @@ function move(start, end, board) {
 	return true;
 }
 
+/** Switches the player so the other player can make a move. */
 function switchPlayer(start, end, board) {
+
 	// Update selected
 	board.selected = null;
 	start.setSelected(false);
@@ -178,6 +189,8 @@ function switchPlayer(start, end, board) {
 	}
 }
 
+/** Puts the game in 'gameover' mode, preventing the user from interacting
+* with the board and placing GAME OVER text in the center of the board. */
 function gameover() {
 	htmlBoard.innerHTML += '<span style="position: absolute; left: 50%; top: 50%; color: red;'+
 	'transform: translate(-50%,-50%); font-weight: bold; font-size: 2em; background: rgba(235,235,235,0.9);'+
@@ -185,12 +198,15 @@ function gameover() {
 	over = true;
 }
 
+/** The Game object represents an instance of the checkers game. */
 function Game(squares, isP1AI, isP2AI) {
 	this.squares = squares;
 	this.isP1AI = isP1AI;
 	this.isP2AI = isP2AI;
 	this.isP1Turn = true;
 	this.selected = null;
+
+	/** Gets the checkers square based on the x, y coordinates. Returns null if invalid. */
 	this.get = function(x, y) {
 		
 		// Special cases
@@ -201,11 +217,16 @@ function Game(squares, isP1AI, isP2AI) {
 		var index = y*4 + Math.floor(x/2);
 		return index >= 0 && index < squares.length? this.squares[index] : null;
 	}
+
+	/** Gets the 4 (diagonal) adjacent squares to the current one. If a square
+	* is out of bounds, the value of that square in the array returned is null. */
 	this.getAdjacent = function(square) {
 		if (!square) {return [];}
 		var x = square.x, y = square.y;
 		return [this.get(x-1,y-1), this.get(x+1,y-1), this.get(x-1,y+1), this.get(x+1,y+1)];
 	}
+
+	/** Validates a move. */
 	this.isValid = function(start, end, ignoreTurn) {
 		if (!start || !end || start.isEmpty() || !end.isEmpty()) {return false;}
 		var dist = start.dist(end);
@@ -251,6 +272,8 @@ function Game(squares, isP1AI, isP2AI) {
 		
 		return true;
 	}
+
+	/** Determines if the game is over. */
 	this.isGameOver = function() {
 		
 		// No checkers
@@ -270,6 +293,8 @@ function Game(squares, isP1AI, isP2AI) {
 		
 		return !move;
 	}
+
+	/** Gets all the current squares with black checkers. */
 	this.getBlackCheckers = function() {
 		var checkers = [];
 		for (var i=0; i<squares.length; i++) {
@@ -277,6 +302,8 @@ function Game(squares, isP1AI, isP2AI) {
 		}
 		return checkers;
 	}
+
+	/** Gets all the current squares with white checkers. */
 	this.getWhiteCheckers = function() {
 		var checkers = [];
 		for (var i=0; i<squares.length; i++) {
@@ -284,6 +311,8 @@ function Game(squares, isP1AI, isP2AI) {
 		}
 		return checkers;
 	}
+
+	/** A testing print function. */
 	this.print = function() {
 		var obj = '', n=0;
 		for (var y=0; y<8; y++) {
@@ -295,6 +324,8 @@ function Game(squares, isP1AI, isP2AI) {
 		}
 		return obj;
 	}
+
+	/** Creates a copy of this game instance. */
 	this.copy = function() {
 		var points = [];
 		for (var i=0; i<this.squares.length; i++) {
@@ -304,28 +335,44 @@ function Game(squares, isP1AI, isP2AI) {
 	}
 }
 
+/** The Square object represents a black tile that can contain a checker or be empty. */
 function Square(x, y, id) {
 	this.x = x; this.y = y;
+
+	/** Checks if this square contains no checker. */
 	this.isEmpty = function() {return this.id.id == ID_EMPTY.id;}
+
+	/** Checks if this square contains a king. */
 	this.isKing = function() {
 		return this.id.id == ID_BLACK_KING.id || this.id.id == ID_WHITE_KING.id;
 	}
+
+	/** Checks if this square contains a black checker. */
 	this.isBlackChecker = function() {
 		return this.id.id == ID_BLACK.id || this.id.id == ID_BLACK_KING.id;
 	}
+
+	/** Checks if this square contains a white checker. */
 	this.isWhiteChecker = function() {
 		return this.id.id == ID_WHITE.id || this.id.id == ID_WHITE_KING.id;
 	}
+
+	/** Gets the distance between a test square and this one. */
 	this.dist = function(endSquare) {
 		if (!endSquare) {return {"dx": null, "dy": null};}
 		var dx = endSquare.x - x, dy = endSquare.y - y;
 		return {"dx": dx, "dy": dy};
 	}
+
+	/** Checks if another square is an enemy checker. */
 	this.isEnemy = function(test) {
 		if (this.isEmpty() || test.isEmpty()) {return false;}
 		if (this.isBlackChecker()) {return test.isWhiteChecker();}
 		return test.isBlackChecker();
 	}
+
+	/** Sets the selected state of this square. If the square has at least one move,
+	* the selected colour is green. Otherwise, it will be red. */
 	this.setSelected = function(selected) {
 		var obj = document.getElementById('p'+x+''+y);
 		if (selected) {
@@ -348,12 +395,18 @@ function Square(x, y, id) {
 			obj.style.backgroundColor = 'black';
 		}
 	}
+
+	/** Sets the ID of this square and updates the HTML being displayed. */
 	this.setID = function(id) {
 		this.id = id;
 		var obj = document.getElementById('p'+x+''+y);
 		obj.innerHTML = id.html;
 	}
 	this.setID(id);
+
+	/** Gets the available moves, including possible skips. If a skip is available,
+	* no regular moves are checked as the skip would have to be taken. Returns an
+	* array with the final location of each move, or an empty array if no moves exist. */
 	this.getMoves = function(ignoreTurn, board) {
 		if (this.isEmpty()) {return [];}
 		var moves = [];
@@ -372,6 +425,10 @@ function Square(x, y, id) {
 		
 		return moves;
 	}
+
+	/** Gets the skips available to the checker in this square. If no skips are
+	* available, then an empty array is returned. Returns an array with the final
+	* location of each skip. */
 	this.getSkips = function(board) {
 		if (this.isEmpty()) {return [];}
 		var skips = [], white = this.isWhiteChecker(), king = this.isKing();
@@ -393,6 +450,8 @@ function Square(x, y, id) {
 		}
 		return skips;
 	}
+
+	/** Creates a copy of this square object. */
 	this.copy = function() {
 		var cID = {"id": this.id.id, "html": this.id.html};
 		return new Square(this.x, this.y, cID);
@@ -418,12 +477,14 @@ var W_BECOMES_K = 75;
 var W_GETS_STUCK = -10;
 var W_OTHER_S = 40;
 
+/** Object that represents an AI move. */
 function Move(start, end, weight) {
 	this.start = start;
 	this.end = end;
 	this.weight = weight;
 }
 
+/** The general method for getting an AI move. */
 function getAIMove(forBlackChecker, board) {
 	var moves = [], checkers = forBlackChecker? board.getBlackCheckers() : board.getWhiteCheckers();
 	if (checkers.length == 0) {
@@ -473,6 +534,7 @@ function getAIMove(forBlackChecker, board) {
 	return bestMoves[index];
 }
 
+/** Gets the next available skip for a checker. Used when multiple skips can be made. */
 function getAISkip(square, board) {
 	if (!square) {return null;}
 	var moves = [], skips = square.getSkips(board);
@@ -504,6 +566,8 @@ function getAISkip(square, board) {
 	return bestMoves[index];
 }
 
+/** Gets the weight of a move to determine how good of a move it is. The higher
+ * the weight, the better. */
 function getWeight(move, board) {
 	var weight = 0, after = board.copy();
 	var start = after.get(move.start.x, move.start.y);
@@ -570,6 +634,7 @@ function getWeight(move, board) {
 	return weight;
 }
 
+/** Checks if a checker on a square is safe from the enemy checkers. */
 function isSafe(square, board) {
 	if (!square || !board || square.isEmpty()) {return true;}
 	var adj = board.getAdjacent(square);
